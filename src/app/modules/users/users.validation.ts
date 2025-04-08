@@ -16,11 +16,7 @@ const userValidationMessages = {
     },
     name: {
         required: 'Name is required',
-    },
-    phone: {
-        required: 'Phone number is required',
-        invalid: 'Invalid phone number format',
-    },
+    }
 };
 
 const updateUserZodSchema = z.object({
@@ -39,13 +35,6 @@ const updateUserZodSchema = z.object({
             password: z
                 .string()
                 .min(6, userValidationMessages.password.minLength)
-                .optional(),
-            phone: z
-                .string()
-                .regex(
-                    /^\+?[0-9]\d{1,14}$/,
-                    userValidationMessages.phone.invalid,
-                )
                 .optional(),
         })
         .optional(),

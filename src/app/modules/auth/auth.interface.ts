@@ -16,6 +16,7 @@ export interface ILoginUser {
 export interface ILoginResponse {
     accessToken: string;
     refreshToken?: string;
+    user:  any;
 }
 
 export interface IRefreshTokenResponse {
