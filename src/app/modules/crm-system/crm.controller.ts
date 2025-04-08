@@ -5,15 +5,18 @@ import sendResponse from '../../../shared/utils/send-response';
 import { CRMService } from './crm.service';
 import paginationPick from '../../../shared/utils/pagination-pick';
 import { paginationFields } from '../../../shared/constants/common-constants';
+import { ICustomer } from './crm-interface';
 
-// Get all customers
+/**
+ * Retrieves all customers with pagination and filtering.
+ */
 const getAllCustomers = catchAsync(async (req: Request, res: Response) => {
   const filters = paginationPick(req.query, ['searchTerm', 'minSpend', 'maxSpend']);
   const paginationOptions = paginationPick(req.query, paginationFields);
 
   const result = await CRMService.getAllCustomers(filters, paginationOptions);
 
-  sendResponse(res, {
+  sendResponse<ICustomer[]>(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Customers retrieved successfully',
@@ -22,12 +25,14 @@ const getAllCustomers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get customer by ID
+/**
+ * Retrieves a single customer by ID.
+ */
 const getCustomerById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await CRMService.getCustomerById(id);
 
-  sendResponse(res, {
+  sendResponse<ICustomer>(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Customer retrieved successfully',
@@ -35,11 +40,14 @@ const getCustomerById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Create customer
+/**
+ * Creates a new customer.
+ */
 const createCustomer = catchAsync(async (req: Request, res: Response) => {
-  const result = await CRMService.createCustomer(req.body);
+  const customerData = req.body;
+  const result = await CRMService.createCustomer(customerData);
 
-  sendResponse(res, {
+  sendResponse<ICustomer>(res, {
     statusCode: httpStatus.CREATED,
     success: true,
     message: 'Customer created successfully',
@@ -47,12 +55,15 @@ const createCustomer = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Update customer
+/**
+ * Updates an existing customer by ID.
+ */
 const updateCustomer = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await CRMService.updateCustomer(id, req.body);
+  const updatedData = req.body;
+  const result = await CRMService.updateCustomer(id, updatedData);
 
-  sendResponse(res, {
+  sendResponse<ICustomer>(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Customer updated successfully',
@@ -60,12 +71,16 @@ const updateCustomer = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get personalized offer
+/**
+ * Retrieves a personalized offer for a customer.
+ * Supports toggling between rule-based and AI-inspired logic via query param.
+ */
 const getPersonalizedOffer = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const offer = await CRMService.getPersonalizedOffer(id);
+  const useAI = req.query.useAI === 'true'; // Optional query param to toggle AI mode
+  const offer = await CRMService.getPersonalizedOffer(id, useAI);
 
-  sendResponse(res, {
+  sendResponse<{ offer: string }>(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Personalized offer retrieved successfully',
@@ -73,15 +88,17 @@ const getPersonalizedOffer = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Send visit reminder
+/**
+ * Sends a visit reminder to a customer if applicable.
+ */
 const sendVisitReminder = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   await CRMService.sendVisitReminder(id);
 
-  sendResponse(res, {
+  sendResponse<null>(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Reminder sent successfully',
+    message: 'Visit reminder sent successfully',
     data: null,
   });
 });
