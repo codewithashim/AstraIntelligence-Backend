@@ -2,6 +2,7 @@ import express from 'express';
 import { UserRoutes } from '../modules/users/users.routes';
 import { healthCheck } from '../modules/health/health.controller';
 import { AuthRoutes } from '../modules/auth/auth.routes';
+import { CRMRoutes } from '../modules/crm-system/crm.routes';
 const router = express.Router();
 
 const moduleRoutes = [
@@ -17,6 +18,10 @@ const moduleRoutes = [
         path: '/auth',
         route: AuthRoutes,
     },
+    {
+        path: '/crm',
+        route: CRMRoutes,
+    }
      
 ];
 

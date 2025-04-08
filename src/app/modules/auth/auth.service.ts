@@ -94,6 +94,7 @@ const loginUser = async (payload: ILoginUser): Promise<ILoginResponse> => {
     return {
         accessToken,
         refreshToken,
+        user: isUserExist,
     };
 };
 

@@ -29,9 +29,6 @@ const registerUserSchema = z.object({
         password: z.string().min(6, userValidationMessages.password.minLength),
         role: z.nativeEnum(ENUM_USER_ROLE),
         name: z.string(),
-        phone: z
-            .string()
-            .regex(/^\+?[0-9]\d{1,14}$/, userValidationMessages.phone.invalid),
     }),
 });
 
