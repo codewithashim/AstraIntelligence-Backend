@@ -67,12 +67,12 @@ export const envConfig = {
         bucketName: parsedEnv.data.AWS_BUCKET_NAME,
     },
     email: {
-        emailHost: parsedEnv.data.EMAIL_HOST,
-        emailPort: parsedEnv.data.EMAIL_PORT,
-        emailUser: parsedEnv.data.EMAIL_USER,
-        emailPassword: parsedEnv.data.EMAIL_PASSWORD,
-        emailFrom: parsedEnv.data.EMAIL_FROM,
-        emailSecure: parsedEnv.data.EMAIL_SECURE,
+        emailHost: process.env.EMAIL_HOST,
+        emailPort: Number(process.env.EMAIL_PORT),
+        emailSecure: process.env.EMAIL_SECURE === 'true',
+        emailUser: process.env.EMAIL_USER,
+        emailPassword: process.env.EMAIL_PASSWORD,
+        emailFrom: process.env.EMAIL_FROM,
     },
     allowDomains: parsedEnv.data.ALLOW_DOMAINS?.split(',') || [],
 };
