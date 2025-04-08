@@ -29,6 +29,14 @@ const CustomerSchema = new Schema<ICustomer>(
       type: String,
       optional: true,
     },
+    phone: {
+      type: String,
+      optional: true,
+    },
+    nextAppointment: {
+      type: Date,
+      optional: true,
+    },
   },
   {
     timestamps: true,

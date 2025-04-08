@@ -34,6 +34,13 @@
  *           type: string
  *           format: email
  *           description: Customer's email address (optional)
+ *         phone:
+ *           type: string
+ *           description: Customer's phone number (optional)
+ *         nextAppointment:
+ *           type: string
+ *           format: date
+ *           description: Date of the customer's next appointment (optional)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -42,6 +49,78 @@
  *           type: string
  *           format: date-time
  *           description: Timestamp when the customer was last updated
+ *
+ *     ServicePreference:
+ *       type: object
+ *       properties:
+ *         service:
+ *           type: string
+ *           example: 'Gel Nails'
+ *         count:
+ *           type: number
+ *           example: 2
+ *
+ *     CrossSellingOpportunity:
+ *       type: object
+ *       properties:
+ *         customer:
+ *           $ref: '#/components/schemas/Customer'
+ *         suggestedService:
+ *           type: string
+ *           example: 'Gel Nails'
+ *
+ *     CustomerRecommendation:
+ *       type: object
+ *       properties:
+ *         highValueCustomers:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Customer'
+ *         reengagementNeeded:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Customer'
+ *         crossSellingOpportunities:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/CrossSellingOpportunity'
+ *
+ *     LoyaltyTier:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: 'Basic'
+ *         visitRange:
+ *           type: object
+ *           properties:
+ *             min:
+ *               type: number
+ *               example: 1
+ *             max:
+ *               type: number
+ *               example: 3
+ *               nullable: true
+ *         benefits:
+ *           type: string
+ *           example: '5% off retail products'
+ *         customerCount:
+ *           type: number
+ *           example: 1
+ *
+ *     CustomerInsights:
+ *       type: object
+ *       properties:
+ *         servicePreferences:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ServicePreference'
+ *         recommendations:
+ *           $ref: '#/components/schemas/CustomerRecommendation'
+ *         loyaltyProgram:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/LoyaltyTier'
  *
  *   responses:
  *     UnauthorizedError:
@@ -252,16 +331,16 @@
  *       500:
  *         description: Internal server error
  *         content:
- *           application/json 500:
- *           schema:
- *             type: object
- *             properties:
- *               success:
- *                 type: boolean
- *                 example: false
- *               message:
- *                 type: string
- *                 example: 'Failed to fetch customer'
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: 'Failed to fetch customer'
  *
  *   patch:
  *     summary: Update customer
@@ -302,6 +381,13 @@
  *                 type: string
  *                 format: email
  *                 description: Customer's email (optional)
+ *               phone:
+ *                 type: string
+ *                 description: Customer's phone number (optional)
+ *               nextAppointment:
+ *                 type: string
+ *                 format: date
+ *                 description: Date of next appointment (optional)
  *     responses:
  *       200:
  *         description: Customer updated successfully
@@ -399,7 +485,7 @@
  * /crm/{id}/reminder:
  *   post:
  *     summary: Send visit reminder
- *     description: Sends an email reminder to a customer if they haven’t visited in over 30 days
+ *     description: Sends an email reminder to a customer if they haven’t visited in over 45 days
  *     tags: [CRM]
  *     security:
  *       - bearerAuth: []
@@ -446,4 +532,107 @@
  *                 message:
  *                   type: string
  *                   example: 'Failed to send visit reminder'
+ *
+ * /crm/dashboard/overview:
+ *   get:
+ *     summary: Get dashboard overview
+ *     description: Retrieves key metrics for the CRM dashboard
+ *     tags: [CRM]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard overview retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: 'Dashboard overview retrieved successfully'
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalCustomers:
+ *                       type: number
+ *                       example: 6
+ *                     customersWithAppointments:
+ *                       type: number
+ *                       example: 4
+ *                     averageCustomerValue:
+ *                       type: number
+ *                       example: 655.00
+ *                     totalVisits:
+ *                       type: number
+ *                       example: 36
+ *                     averageVisitsPerCustomer:
+ *                       type: number
+ *                       example: 6.0
+ *                     topService:
+ *                       type: object
+ *                       properties:
+ *                         service:
+ *                           type: string
+ *                           example: 'Gel Nails'
+ *                         percentage:
+ *                           type: number
+ *                           example: 33
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: 'Failed to fetch dashboard overview'
+ *
+ * /crm/insights:
+ *   get:
+ *     summary: Get customer insights
+ *     description: Retrieves insights including service preferences, recommendations, and loyalty program
+ *     tags: [CRM]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Customer insights retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: 'Customer insights retrieved successfully'
+ *                 data:
+ *                   $ref: '#/components/schemas/CustomerInsights'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: 'Failed to fetch customer insights'
  */

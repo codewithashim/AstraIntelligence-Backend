@@ -1,17 +1,21 @@
 import { SortOrder } from 'mongoose';
-import { ICustomer, ICustomerFilters } from './crm-interface';
+import {
+    ICustomer,
+    ICustomerFilters,
+    IServicePreference,
+    ICustomerRecommendation,
+    ILoyaltyTier,
+    ICustomerInsights,
+} from './crm-interface';
 import { Customer } from './crm.models';
 import ApiError from '../../../shared/errors/api-error';
 import { paginationHelpers } from '../../../shared/helpers/pagination-helper';
 import { emailService } from '../../../shared/services/email/email.service';
 import httpStatus from 'http-status';
- 
+import { paginationFields } from '../../../shared/constants/common-constants';
+
 /**
- * Fetches all customers with optional filters and pagination.
- * @param filters - Search and spend range filters
- * @param paginationOptions - Pagination and sorting options
- * @returns Promise containing metadata and customer data
- * @throws ApiError if database query fails
+ * Fetches all customers with filters and pagination.
  */
 const getAllCustomers = async (
     filters: ICustomerFilters,
@@ -22,7 +26,6 @@ const getAllCustomers = async (
 
     const andConditions = [];
 
-    // Add search term condition for name or preferredService
     if (searchTerm) {
         andConditions.push({
             $or: ['name', 'preferredService'].map((field) => ({
@@ -31,7 +34,6 @@ const getAllCustomers = async (
         });
     }
 
-    // Add spend range filter
     if (minSpend || maxSpend) {
         const spendFilter: any = {};
         if (minSpend) spendFilter.$gte = minSpend;
@@ -65,9 +67,6 @@ const getAllCustomers = async (
 
 /**
  * Fetches a customer by their ID.
- * @param id - Customer ID
- * @returns Promise resolving to the customer or null
- * @throws ApiError if customer not found or query fails
  */
 const getCustomerById = async (id: string): Promise<ICustomer | null> => {
     try {
@@ -84,9 +83,6 @@ const getCustomerById = async (id: string): Promise<ICustomer | null> => {
 
 /**
  * Creates a new customer.
- * @param payload - Customer data to create
- * @returns Promise resolving to the created customer
- * @throws ApiError if creation fails
  */
 const createCustomer = async (payload: ICustomer): Promise<ICustomer> => {
     try {
@@ -99,10 +95,6 @@ const createCustomer = async (payload: ICustomer): Promise<ICustomer> => {
 
 /**
  * Updates an existing customer.
- * @param id - Customer ID
- * @param payload - Partial customer data to update
- * @returns Promise resolving to the updated customer or null
- * @throws ApiError if customer not found or update fails
  */
 const updateCustomer = async (
     id: string,
@@ -121,10 +113,7 @@ const updateCustomer = async (
 };
 
 /**
- * Generates a rule-based personalized offer based on customer spending and visit habits.
- * @param id - Customer ID
- * @returns Promise resolving to the offer string
- * @throws ApiError if customer retrieval fails
+ * Generates a rule-based personalized offer.
  */
 const getPersonalizedOfferRuleBased = async (id: string): Promise<string> => {
     try {
@@ -147,24 +136,19 @@ const getPersonalizedOfferRuleBased = async (id: string): Promise<string> => {
 };
 
 /**
- * Generates an AI-inspired personalized offer using simple clustering logic.
- * @param id - Customer ID
- * @returns Promise resolving to the offer string
- * @throws ApiError if customer retrieval or data processing fails
+ * Generates an AI-inspired personalized offer using clustering.
  */
 const getPersonalizedOfferAIInspired = async (id: string): Promise<string> => {
     try {
         const customer = await getCustomerById(id);
         if (!customer) return 'No offer available';
 
-        const allCustomers = await Customer.find(); // Fetch all customers for clustering simulation
+        const allCustomers = await Customer.find();
         const { lifetimeSpend, totalVisits, preferredService } = customer;
 
-        // Calculate average spend and visits (simulating K-means centroids)
         const avgSpend = allCustomers.reduce((sum, c) => sum + c.lifetimeSpend, 0) / allCustomers.length;
         const avgVisits = allCustomers.reduce((sum, c) => sum + c.totalVisits, 0) / allCustomers.length;
 
-        // Define customer "cluster" based on spending habits
         if (lifetimeSpend > avgSpend * 1.5 && totalVisits > avgVisits) {
             return `25% off ${preferredService} - Elite Customer Exclusive!`;
         } else if (lifetimeSpend > avgSpend) {
@@ -179,20 +163,14 @@ const getPersonalizedOfferAIInspired = async (id: string): Promise<string> => {
 };
 
 /**
- * Wrapper function to choose between rule-based and AI-inspired personalized offers.
- * @param id - Customer ID
- * @param useAI - Boolean flag to toggle AI-inspired logic (default: false)
- * @returns Promise resolving to the offer string
+ * Wrapper for personalized offers.
  */
 const getPersonalizedOffer = async (id: string, useAI: boolean = false): Promise<string> => {
     return useAI ? await getPersonalizedOfferAIInspired(id) : await getPersonalizedOfferRuleBased(id);
 };
 
 /**
- * Sends a visit reminder email if the customer hasn’t visited in over 30 days.
- * @param id - Customer ID
- * @returns Promise resolving to void
- * @throws ApiError if customer not found, email missing, or sending fails
+ * Sends a visit reminder email if the customer hasn’t visited in over 45 days.
  */
 const sendVisitReminder = async (id: string): Promise<void> => {
     try {
@@ -205,17 +183,136 @@ const sendVisitReminder = async (id: string): Promise<void> => {
             (new Date().getTime() - customer.lastVisit.getTime()) / (1000 * 3600 * 24)
         );
 
-        if (daysSinceLastVisit > 30) {
+        if (daysSinceLastVisit > 45) {
             const offer = await getPersonalizedOffer(id);
-            await emailService.sendEmail({
-                to: customer.email,
-                subject: 'We Miss You!',
-                text: `Hi ${customer.name}, it's been ${daysSinceLastVisit} days since your last visit on ${customer.lastVisit.toDateString()}. Book your next ${customer.preferredService} today and enjoy your personalized offer: ${offer}`,
-            });
+            await emailService.sendVisitReminderEmail(
+                customer.email,
+                customer.name,
+                daysSinceLastVisit,
+                customer.lastVisit,
+                customer.preferredService,
+                offer
+            );
         }
     } catch (error) {
         if (error instanceof ApiError) throw error;
         throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to send visit reminder');
+    }
+};
+
+
+/**
+ * Fetches dashboard overview metrics.
+ */
+const getDashboardOverview = async (): Promise<{
+    totalCustomers: number;
+    customersWithAppointments: number;
+    averageCustomerValue: number;
+    totalVisits: number;
+    averageVisitsPerCustomer: number;
+    topService: { service: string; percentage: number };
+}> => {
+    try {
+        const allCustomers = await Customer.find();
+
+        const totalCustomers = allCustomers.length;
+        const customersWithAppointments = allCustomers.filter(c => c.nextAppointment && c.nextAppointment > new Date()).length;
+        const totalLifetimeSpend = allCustomers.reduce((sum, c) => sum + c.lifetimeSpend, 0);
+        const averageCustomerValue = totalCustomers > 0 ? totalLifetimeSpend / totalCustomers : 0;
+        const totalVisits = allCustomers.reduce((sum, c) => sum + c.totalVisits, 0);
+        const averageVisitsPerCustomer = totalCustomers > 0 ? totalVisits / totalCustomers : 0;
+
+        // Calculate top service
+        const serviceCounts: { [key: string]: number } = {};
+        allCustomers.forEach(c => {
+            serviceCounts[c.preferredService] = (serviceCounts[c.preferredService] || 0) + 1;
+        });
+        const topServiceEntry = Object.entries(serviceCounts).reduce(
+            (max, entry) => (entry[1] > max[1] ? entry : max),
+            ['Unknown', 0]
+        );
+        const topService = {
+            service: topServiceEntry[0],
+            percentage: totalCustomers > 0 ? (topServiceEntry[1] / totalCustomers) * 100 : 0,
+        };
+
+        return {
+            totalCustomers,
+            customersWithAppointments,
+            averageCustomerValue,
+            totalVisits,
+            averageVisitsPerCustomer,
+            topService,
+        };
+    } catch (error) {
+        throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to fetch dashboard overview');
+    }
+};
+
+/**
+ * Fetches customer insights including service preferences, recommendations, and loyalty program.
+ */
+const getCustomerInsights = async (): Promise<ICustomerInsights> => {
+    try {
+        const allCustomers = await Customer.find();
+
+        // Service Preferences
+        const serviceCounts: { [key: string]: number } = {};
+        allCustomers.forEach(c => {
+            serviceCounts[c.preferredService] = (serviceCounts[c.preferredService] || 0) + 1;
+        });
+        const servicePreferences: IServicePreference[] = Object.entries(serviceCounts).map(([service, count]) => ({
+            service,
+            count,
+        }));
+
+        // Recommendations
+        const sortedBySpend = [...allCustomers].sort((a, b) => b.lifetimeSpend - a.lifetimeSpend);
+        const highValueCount = Math.ceil(allCustomers.length * 0.2); // Top 20%
+        const highValueCustomers = sortedBySpend.slice(0, highValueCount);
+
+        const reengagementNeeded = allCustomers.filter(c => {
+            const daysSinceLastVisit = Math.floor(
+                (new Date().getTime() - c.lastVisit.getTime()) / (1000 * 3600 * 24)
+            );
+            return daysSinceLastVisit > 45;
+        });
+
+        const crossSellingOpportunities = allCustomers.map(c => {
+            const otherServices = servicePreferences
+                .filter(s => s.service !== c.preferredService)
+                .sort((a, b) => b.count - a.count);
+            return {
+                customer: c,
+                suggestedService: otherServices[0]?.service || 'Nail Art', // Default to Nail Art if none
+            };
+        }).filter((_, index) => index < 2); // Limit to 2 suggestions for simplicity
+
+        // Loyalty Program
+        const loyaltyTiers: ILoyaltyTier[] = [
+            { name: 'Basic', visitRange: { min: 1, max: 3 }, benefits: '5% off retail products', customerCount: 0 },
+            { name: 'Silver', visitRange: { min: 4, max: 7 }, benefits: '10% off all services', customerCount: 0 },
+            { name: 'Gold', visitRange: { min: 8 }, benefits: 'Free add-on with service', customerCount: 0 },
+        ];
+
+        allCustomers.forEach(c => {
+            const tier = loyaltyTiers.find(t =>
+                c.totalVisits >= t.visitRange.min && (!t.visitRange.max || c.totalVisits <= t.visitRange.max)
+            );
+            if (tier) tier.customerCount++;
+        });
+
+        return {
+            servicePreferences,
+            recommendations: {
+                highValueCustomers,
+                reengagementNeeded,
+                crossSellingOpportunities,
+            },
+            loyaltyProgram: loyaltyTiers,
+        };
+    } catch (error) {
+        throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to fetch customer insights');
     }
 };
 
@@ -226,4 +323,6 @@ export const CRMService = {
     updateCustomer,
     getPersonalizedOffer,
     sendVisitReminder,
+    getDashboardOverview,
+    getCustomerInsights,
 };
